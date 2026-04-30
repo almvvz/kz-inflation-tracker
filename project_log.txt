@@ -1,0 +1,77 @@
+Kazakhstan Inflation Tracker — Project Log
+==========================================
+
+STEP 1 — Project Scaffold
+--------------------------
+Created directory structure:
+  - data/raw/       for caching API responses locally
+  - notebooks/      for exploratory analysis
+  - src/            all app logic
+  - requirements.txt
+  - .gitignore
+
+STEP 2 — Virtual Environment & Dependencies
+--------------------------------------------
+- Created .venv using Python 3.9
+- Installed: streamlit, pandas, plotly, requests, prophet, python-dateutil
+
+STEP 3 — Data Sources
+----------------------
+World Bank API:
+  - Endpoint: api.worldbank.org/v2/country/KZ/indicator/FP.CPI.TOTL.ZG
+  - Returns annual CPI % (year-over-year) for Kazakhstan
+  - Free, no API key required
+  - Returns 31 years of data (1994–2024)
+  - Cached to data/raw/cpi_KZ.json
+
+National Bank of Kazakhstan (NBK) API:
+  - Original plan was exchangerate.host — abandoned (now requires paid key)
+  - Switched to NBK official rates: nationalbank.kz/rss/get_rates.cfm
+  - Free XML API, returns daily official KZT/USD rate for any date
+  - Fetched first of each month from Jan 2000 to Apr 2026 = 315 data points
+  - Cached to data/raw/fx_USD_KZT_nbk.json
+
+STEP 4 — Source Files
+----------------------
+src/data_fetch.py
+  - fetch_cpi_worldbank(): calls World Bank API, caches result
+  - fetch_exchange_rate(): loops monthly, calls NBK API, caches result
+
+src/preprocessing.py
+  - resample_fx_annual(): resamples monthly FX to annual averages
+  - merge_datasets(): inner joins CPI and FX on year (25 rows, 2000–2024)
+
+src/forecasting.py
+  - forecast_series(): fits Prophet model on any annual series
+  - Returns 5-year forecast with confidence intervals
+  - Filters pre-2000 data to exclude post-Soviet hyperinflation outliers
+    (1994 CPI was 1877% — this distorted the trend badly)
+  - Uses freq="YS" (year-start) so forecast dates stay Jan-1,
+    matching the historical data format
+
+app.py
+  - 3-tab Streamlit app: CPI chart / KZT/USD chart / Raw Data table
+  - Each chart: actual data + dashed forecast + shaded confidence band
+  - All loading and forecasting inside @st.cache_data (Prophet fits once)
+
+STEP 5 — Testing
+-----------------
+Each module tested individually:
+  - CPI fetch:      31 rows (1994–2024)               OK
+  - FX fetch:       315 monthly rows (2000–2026)       OK
+  - Preprocessing:  25 merged annual rows              OK
+  - CPI forecast:   ~8–9% range (reasonable)           OK
+  - FX forecast:    upward trend ~457–540 KZT/USD      OK
+
+STEP 6 — Git
+-------------
+- git init (local repo only, no remote)
+- Committed: app.py, src/, requirements.txt, .gitignore
+
+HOW TO RUN
+----------
+  cd ~/Desktop/kz-inflation-tracker
+  .venv/bin/streamlit run app.py
+
+  Open http://localhost:8501 in your browser.
+  Data is cached locally — no API calls after first run.
