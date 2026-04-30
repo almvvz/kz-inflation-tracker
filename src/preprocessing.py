@@ -17,3 +17,4 @@ def merge_datasets(cpi_df: pd.DataFrame, fx_df: pd.DataFrame) -> pd.DataFrame:
     fx_annual = resample_fx_annual(fx_df)
     merged = pd.merge(cpi_df, fx_annual, on="date", how="inner")
     return merged
+
